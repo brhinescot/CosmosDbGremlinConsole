@@ -313,7 +313,6 @@
     <None Include="App.config">
       <SubType>Designer</SubType>
     </None>
-    <None Include="GremlinConsole_TemporaryKey.pfx" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>

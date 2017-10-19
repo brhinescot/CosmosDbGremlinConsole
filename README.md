@@ -1,0 +1,1 @@
+![Basic COnsole](documentation/images/console.png)
