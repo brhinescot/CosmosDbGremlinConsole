@@ -23,7 +23,7 @@ namespace GremlinConsole
     /// </summary>
     public class Program
     {
-        private readonly JsonSerializerSettings settings = new JsonSerializerSettings()
+        private readonly JsonSerializerSettings settings = new JsonSerializerSettings
         {
             DateFormatHandling = DateFormatHandling.IsoDateFormat,
             DateTimeZoneHandling = DateTimeZoneHandling.Utc,
@@ -99,11 +99,11 @@ namespace GremlinConsole
                         WriteLine("Press Enter to retry, any other key exit.");
                         ConsoleKeyInfo info = ReadKey(true);
                         retry = info.Key == ConsoleKey.Enter;
-                        if (retry)
-                        {
-                            Clear();
-                            WriteLine("Retrying connection ...");
-                        }
+                        if (!retry)
+                            continue;
+
+                        Clear();
+                        WriteLine("Retrying connection ...");
                     }
                     catch (Exception ex)
                     {
@@ -115,11 +115,11 @@ namespace GremlinConsole
                         WriteLine("Press Enter to retry, any other key exit.");
                         ConsoleKeyInfo info = ReadKey(true);
                         retry = info.Key == ConsoleKey.Enter;
-                        if (retry)
-                        {
-                            Clear();
-                            WriteLine("Retrying connection ...");
-                        }
+                        if (!retry)
+                            continue;
+
+                        Clear();
+                        WriteLine("Retrying connection ...");
                     }
                 }
             }
@@ -169,13 +169,13 @@ namespace GremlinConsole
 
         private static string ReadLongLine()
         {
-            byte[] inputBuffer = new byte[2048];
+            var inputBuffer = new byte[2048];
             Stream inputStream = OpenStandardInput(inputBuffer.Length);
             SetIn(new StreamReader(inputStream, InputEncoding, false, inputBuffer.Length));
             return ReadLine();
         }
 
-        private async Task<(DocumentClient client, DocumentCollection graph)> Connect()
+        private static async Task<(DocumentClient client, DocumentCollection graph)> Connect()
         {
             ResetColor();
             WriteLine("Connect to database");
@@ -190,7 +190,7 @@ namespace GremlinConsole
                 {
                     Write("Endpoint (leave blank for local emulator): ");
                     string endpoint = ReadLine();
-                    string authKey = null;
+                    string authKey;
                     if (!string.IsNullOrEmpty(endpoint))
                     {
                         Write("Auth Key");
@@ -249,11 +249,11 @@ namespace GremlinConsole
 
             try
             {
-                IDocumentQuery<dynamic> readQuery = client.CreateGremlinQuery<dynamic>(graph, input, feedOptions, GraphSONMode.Normal);
+                var readQuery = client.CreateGremlinQuery<dynamic>(graph, input, feedOptions, GraphSONMode.Normal);
                
                 while (readQuery.HasMoreResults)
                 {
-                    FeedResponse<dynamic> response = await readQuery.ExecuteNextAsync();
+                    var response = await readQuery.ExecuteNextAsync();
 
                     foreach (var next in response)
                     {
@@ -265,9 +265,7 @@ namespace GremlinConsole
                     }
 
                     ForegroundColor = ConsoleColor.Green;
-                    
                     WriteLine($"==> Request Charge: {response.RequestCharge}");
-                    
                     ForegroundColor = ConsoleColor.Gray;
                 }
             }
