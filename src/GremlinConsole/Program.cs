@@ -7,9 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Azure.Documents;
 using Microsoft.Azure.Documents.Client;
-using Microsoft.Azure.Documents.Linq;
 using Microsoft.Azure.Graphs;
-using Microsoft.Azure.Graphs.Elements;
 using Newtonsoft.Json;
 
 using static System.Console;
@@ -49,7 +47,11 @@ namespace GremlinConsole
         /// </summary>
         /// <returns>A Task for asynchronous execution.</returns>
         private async Task RunAsync()
-        { 
+        {
+            var inputBuffer = new byte[2048];
+            Stream inputStream = OpenStandardInput(inputBuffer.Length);
+            SetIn(new StreamReader(inputStream, InputEncoding, false, inputBuffer.Length));
+
             string endpoint = ConfigurationManager.AppSettings["Endpoint"];
             string authKey = ConfigurationManager.AppSettings["AuthKey"];
             string databaseId = ConfigurationManager.AppSettings["Database"];
@@ -146,6 +148,10 @@ namespace GremlinConsole
                     case "exit":
                         Environment.Exit(0);
                         break;
+                    case "run-script":
+                        string scriptPath = strings[1].Trim('"');
+                        await RunScript(client, graph, scriptPath);
+                        break;
                     case "set-partition":
                         partition = strings[1];
                         ForegroundColor = ConsoleColor.Green;
@@ -167,12 +173,27 @@ namespace GremlinConsole
             }
         }
 
-        private static string ReadLongLine()
+        private async Task RunScript(DocumentClient client, DocumentCollection graph, string scriptPath)
         {
-            var inputBuffer = new byte[2048];
-            Stream inputStream = OpenStandardInput(inputBuffer.Length);
-            SetIn(new StreamReader(inputStream, InputEncoding, false, inputBuffer.Length));
-            return ReadLine();
+            if (string.IsNullOrWhiteSpace(scriptPath))
+                throw new ArgumentNullException(nameof(scriptPath));
+
+            WriteGremlinPrompt();
+
+            using (FileStream stream = File.OpenRead(scriptPath))
+            using (StreamReader reader = new StreamReader(stream))
+            {
+                string line;
+                while ((line = reader.ReadLine()) != null)
+                {
+                    if(string.IsNullOrWhiteSpace(line) || line.StartsWith("//"))
+                        continue;
+
+                    WriteLine(line);
+                    await RunUserQuery(client, graph, line);
+                    WriteGremlinPrompt();
+                }
+            }
         }
 
         private static async Task<(DocumentClient client, DocumentCollection graph)> Connect()
@@ -283,6 +304,14 @@ namespace GremlinConsole
             ForegroundColor = ConsoleColor.Yellow;
             Write("gremlin> ");
             ForegroundColor = ConsoleColor.White;
+        }
+
+        private static string ReadLongLine(int maxLength = 2048)
+        {
+//            var inputBuffer = new byte[maxLength];
+//            Stream inputStream = OpenStandardInput(inputBuffer.Length);
+//            SetIn(new StreamReader(inputStream, InputEncoding, false, inputBuffer.Length));
+            return ReadLine();
         }
     }
 }

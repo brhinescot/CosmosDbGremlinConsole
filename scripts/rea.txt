@@ -1,0 +1,37 @@
+// Start clean
+g.V().drop()
+
+// Setup application
+g.addV(T.label, 'rea', T.id, '1')
+
+// Setup widgets
+g.addV(T.label, 'widget', T.id, 'widget1', 'value', 100)
+g.addV(T.label, 'widget', T.id, 'widget2', 'value', 100)
+g.addV(T.label, 'widget', T.id, 'widget3', 'value', 100)
+g.addV(T.label, 'widget', T.id, 'widget4', 'value', 100)
+
+// Add widgets to inventory
+g.V('1').addE('hasInventory').to(g.V('widget1'))
+g.V('1').addE('hasInventory').to(g.V('widget2'))
+g.V('1').addE('hasInventory').to(g.V('widget3'))
+g.V('1').addE('hasInventory').to(g.V('widget4'))
+
+// Setup users
+g.addV(T.label, 'user', T.id, 'user1', 'name', 'Bob')
+g.addV(T.label, 'user', T.id, 'user2', 'name', 'Jill')
+g.addV(T.label, 'user', T.id, 'user3', 'name', 'Alice')
+g.addV(T.label, 'user', T.id, 'user4', 'name', 'Mark')
+
+// Add users to application
+g.V('1').addE('hasUser').to(g.V('user1'))
+g.V('1').addE('hasUser').to(g.V('user2'))
+g.V('1').addE('hasUser').to(g.V('user3'))
+g.V('1').addE('hasUser').to(g.V('user4'))
+
+// Set user's managers
+g.V('user1').addE('manager').to(g.V('user2'))
+g.V('user3').addE('manager').to(g.V('user4'))
+
+g.addV(T.label, 'contract', T.id, 'contract1').addE('incrementEvent').property('fulfilled', false).to(g.addV(T.label, 'event', T.id, 'event1')).outV().addE('decrementEvent').property('fulfilled', false).to(g.addV(T.label, 'event', T.id, 'event2'))
+g.V('contract1').out('incrementEvent').addE('resource').to(g.V('widget1')).outV().addE('agent').to(g.V('user2')).outV().addE('agent').to(g.V('user1'))
+g.V('contract1').out('decrementEvent').addE('resource').to(g.V('widget2')).outV().addE('agent').to(g.V('user4')).outV().addE('agent').to(g.V('user1'))
