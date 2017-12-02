@@ -173,6 +173,50 @@ namespace GremlinConsole
             }
         }
 
+        private async Task RunUserQuery(DocumentClient client, DocumentCollection graph, string input)
+        {
+            FeedOptions feedOptions = new FeedOptions
+            {
+                EnableCrossPartitionQuery = true,
+                EnableLowPrecisionOrderBy = true,
+                MaxDegreeOfParallelism = 8,
+                PopulateQueryMetrics = true
+            };
+
+            if (!string.IsNullOrWhiteSpace(partition))
+                feedOptions.PartitionKey = new PartitionKey(partition);
+
+            try
+            {
+                var readQuery = client.CreateGremlinQuery<dynamic>(graph, input, feedOptions, GraphSONMode.Normal);
+               
+                while (readQuery.HasMoreResults)
+                {
+                    var response = await readQuery.ExecuteNextAsync();
+
+                    foreach (var next in response)
+                    {
+                        ForegroundColor = ConsoleColor.Yellow;
+                        Write("==> ");
+                        ForegroundColor = ConsoleColor.Gray;
+                        WriteLine($"{JsonConvert.SerializeObject(next, Formatting.Indented, settings)}");
+                        ResetColor();
+                    }
+
+                    ForegroundColor = ConsoleColor.Green;
+                    WriteLine($"==> Request Charge: {response.RequestCharge}");
+                    ForegroundColor = ConsoleColor.Gray;
+                }
+            }
+            catch (Exception e)
+            {
+                WriteLine();
+                ForegroundColor = ConsoleColor.Red;
+                WriteLine(e.Message);
+                ResetColor();
+            }
+        }
+
         private async Task RunScript(DocumentClient client, DocumentCollection graph, string scriptPath)
         {
             if (string.IsNullOrWhiteSpace(scriptPath))
@@ -183,16 +227,39 @@ namespace GremlinConsole
             using (FileStream stream = File.OpenRead(scriptPath))
             using (StreamReader reader = new StreamReader(stream))
             {
+                string query = null;
                 string line;
                 while ((line = reader.ReadLine()) != null)
                 {
-                    if(string.IsNullOrWhiteSpace(line) || line.StartsWith("//"))
+                    line = line.Trim();
+
+                    if(string.IsNullOrEmpty(line) || line.StartsWith("//"))
                         continue;
 
-                    WriteLine(line);
-                    await RunUserQuery(client, graph, line);
-                    WriteGremlinPrompt();
+                    if (line.StartsWith("g"))
+                    {
+                        if (query != null)
+                        {
+                            // Run the completed previous query if it exists.
+                            WriteLine(query);
+                            await RunUserQuery(client, graph, query);
+                            WriteGremlinPrompt();
+                        }
+
+                        // Start a new query from the current line.
+                        query = line;
+                    }
+                    else
+                    {
+                        // Append to the current query.
+                        query += line;
+                    }
                 }
+
+                // Run the last query.
+                WriteLine(query);
+                await RunUserQuery(client, graph, query);
+                WriteGremlinPrompt();
             }
         }
 
@@ -253,50 +320,6 @@ namespace GremlinConsole
             }
 
             return (client, graph);
-        }
-
-        private async Task RunUserQuery(DocumentClient client, DocumentCollection graph, string input)
-        {
-            FeedOptions feedOptions = new FeedOptions
-            {
-                EnableCrossPartitionQuery = true,
-                EnableLowPrecisionOrderBy = true,
-                MaxDegreeOfParallelism = 8,
-                PopulateQueryMetrics = true
-            };
-
-            if (!string.IsNullOrWhiteSpace(partition))
-                feedOptions.PartitionKey = new PartitionKey(partition);
-
-            try
-            {
-                var readQuery = client.CreateGremlinQuery<dynamic>(graph, input, feedOptions, GraphSONMode.Normal);
-               
-                while (readQuery.HasMoreResults)
-                {
-                    var response = await readQuery.ExecuteNextAsync();
-
-                    foreach (var next in response)
-                    {
-                        ForegroundColor = ConsoleColor.Yellow;
-                        Write("==> ");
-                        ForegroundColor = ConsoleColor.Gray;
-                        WriteLine($"{JsonConvert.SerializeObject(next, Formatting.Indented, settings)}");
-                        ResetColor();
-                    }
-
-                    ForegroundColor = ConsoleColor.Green;
-                    WriteLine($"==> Request Charge: {response.RequestCharge}");
-                    ForegroundColor = ConsoleColor.Gray;
-                }
-            }
-            catch (Exception e)
-            {
-                WriteLine();
-                ForegroundColor = ConsoleColor.Red;
-                WriteLine(e.Message);
-                ResetColor();
-            }
         }
 
         private static void WriteGremlinPrompt()
